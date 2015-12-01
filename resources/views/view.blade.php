@@ -19,20 +19,30 @@
                 </div>
                 <div class="panel-body">
                     Users: {{ implode(',', $repo['repo_obj']->Users) }}
-                    <form method="POST" action="/edit/{{ $repo['full_name'] }}">
+                    <form method="POST" action="/edit/{{ $repo['full_name'] }}/{{ $repo['repo_obj']->Branch }}">
                         <input type="hidden" name="_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="users" value="{{ implode(',', $repo['repo_obj']->Users) }}">
                         <div class="form-group">
-                          <label for="inputBranches">Branches</label>
-                          <input type="text" class="form-control" id="inputBranches" 
-                                 placeholder="master,develop" name="branches"
-                                 value="{{ implode(',', $repo['repo_obj']->Branches) }}">
+                          Branch: {{ $repo['repo_obj']->Branch }}
                         </div>
                         <div class="form-group">
-                          <label for="Path">Local path</label>
+                          <label for="Path">Target path</label>
                           <input type="text" class="form-control" id="Path" 
                                  placeholder="/var/www/" name="path"
                                  value="{{ $repo['repo_obj']->Path }}">
+                        </div>
+                        <div class="form-group">
+                            <label for="sshKey">Deploy Key (if remote target)</label>
+                            <textarea class="form-control" id="sshKey"
+                                      placeholder="id-rsa ABC" name="sshkey">
+                                {{ $repo['repo_obj']->DeployKey }}
+                            </textarea>
+                        </div>
+                        <div class="form-group">
+                          <label for="exclude">Excluded files</label>
+                          <input type="text" class="form-control" id="exclude" 
+                                 placeholder="--profile" name="exclude"
+                                 value="{{ implode(',', $repo['repo_obj']->Exclude) }}">
                         </div>
                         <div class="checkbox">
                           <label>
@@ -48,7 +58,7 @@
                           <label for="optionsc">Composer options</label>
                           <input type="text" class="form-control" id="optionsc" 
                                  placeholder="--profile" name="composerOptions"
-                                 value="{{ implode(',', $repo['repo_obj']->ComposerOptions) }}">
+                                 value="{{ $repo['repo_obj']->ComposerOptions }}">
                         </div>
                        <div class="checkbox">
                           <label>
@@ -67,10 +77,17 @@
                                  value="{{ implode(',', $repo['repo_obj']->Emails) }}">
                         </div>
                         <div class="form-group">
-                          <label for="pass">Deploy password</label>
-                          {{ url('/deploy/' . $repo['full_name'] . '?pass=') }}<input type="text" class="form-control" id="Path" 
+                          <label for="pass">Deploy password</label><br/>
+                          {{ url('/deploy/' . $repo['full_name'] . '/' . $repo['repo_obj']->Branch) }}/<input type="text" class="form-inline" id="Path" 
                                  placeholder="" name="pass"
                                  value="{{ $repo['repo_obj']->DeployPass }}">
+                        </div>
+                        <div class="form-group">
+                            <label for="sshKey">SSH Key (Private repo)</label>
+                            <textarea class="form-control" id="sshKey"
+                                      placeholder="id-rsa ABC" name="sshkey">
+                                {{ $repo['repo_obj']->SSHKey }}
+                            </textarea>
                         </div>
                         <a href="/" class="btn btn-danger">Cancel</a><button type="submit" class="btn btn-success">Save</button>   
                     </form>

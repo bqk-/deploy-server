@@ -22,7 +22,7 @@
                 </div>
               </div>
         </div>
-        <div class="col-md-9">
+        <div class="col-md-9 col-md-offset-3">
             <div class="panel panel-primary">
                 <div class="panel-heading">
                   Available

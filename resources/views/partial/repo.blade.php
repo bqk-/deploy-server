@@ -1,6 +1,6 @@
 
 <div class="col-md-6">
-    <h5><a href="{{ url('view/' . $repo['repo_obj']->Name) }}">{{ $repo['full_name'] }}</a></h5>
+    <h5><a href="{{ url('view/' . $repo['repo_obj']->Name .'/'.$repo['repo_obj']->Branch) }}">{{ $repo['full_name'] }} [{{ $repo['repo_obj']->Branch }}]</a></h5>
     <ul class="list-group">
       <li class="list-group-item">
         Private<span class="badge">{{ $repo['private'] ? "True" : "False" }}</span>  
@@ -10,6 +10,9 @@
       </li>
       <li class="list-group-item">
         Git <span class="badge">{{ $repo['git_url'] }}</span>
+      </li>
+      <li class="list-group-item">
+        Branch <span class="badge">{{ $repo['repo_obj']->Branch }}</span>
       </li>
       <li class="list-group-item">
         Deployed<span class="badge">{{ $repo['repo_obj']->Deployed }}</span>  

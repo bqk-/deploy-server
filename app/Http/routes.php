@@ -25,16 +25,21 @@ $app->get('/', function (Request $request) use ($app) {
         
         foreach ($repos as $r)
         {
-            if(!file_exists(storage_path() . '/userdata/' . $r['owner']['login'] . '_' . $r['name'] . '.json'))
+            $branches = $client->api('repo')->branches($r['owner']['login'], $r['name']);
+            foreach ($branches as $branch)
             {
-                $inactive[] = $r;
+                if(!file_exists(storage_path() . '/userdata/' . $r['owner']['login'] . '_' . $r['name'] . '_' . $branch['name'] .'.json'))
+                {
+                    $r['branch'] = $branch['name'];
+                    $inactive[] = $r;
+                }
+                else
+                {
+                    $repo = json_decode(file_get_contents(storage_path() . '/userdata/' . $r['owner']['login'] . '_' . $r['name'] . '_' . $branch['name'] .'.json')); 
+                    $r['repo_obj'] = $repo;
+                    $active[] = $r;
+                }   
             }
-            else
-            {
-                $repo = json_decode(file_get_contents(storage_path() . '/userdata/' . $r['owner']['login'] . '_' . $r['name'] . '.json')); 
-                $r['repo_obj'] = $repo;
-                $active[] = $r;
-            }    
         }
         
         return view('logged', 
@@ -99,16 +104,20 @@ $app->get('auth', function (Request $request) {
     }
 });
 
-$app->get('view/{owner}/{name}', function (Request $request, $owner, $name) use ($app) {
+$app->get('view/{owner}/{name}/{branch}', function (Request $request, $owner, $name, $branch) use ($app) {
     $client = new Github\Client();
-    if(!file_exists(storage_path() . '/userdata/' . $owner . '_' . $name . '.json') || !$request->session()->has('token'))
+    if(!file_exists(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.json') || !$request->session()->has('token'))
     {
         return redirect('/');
     }
     
     $client->authenticate($request->session()->get('token'), null, Github\Client::AUTH_HTTP_TOKEN);
     $repo = $client->api('repo')->show($owner, $name);
-    $repo['repo_obj'] = json_decode(file_get_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '.json'));
+    $repo['repo_obj'] = json_decode(file_get_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.json'));
+    $repo['repo_obj']->DeployKey = file_get_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.deploy.key');
+    $repo['repo_obj']->SSHKey = file_get_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.ssh.key');
+    
+    
     $user = $client->currentUser()->show();
     if(!in_array($user['login'], $repo['repo_obj']->Users))
     {
@@ -118,53 +127,62 @@ $app->get('view/{owner}/{name}', function (Request $request, $owner, $name) use 
     return view('view', array('repo' => $repo, 'user' => $user));
 });
 
-$app->post('edit/{owner}/{name}', function (Request $request, $owner, $name) use ($app) {
+$app->post('edit/{owner}/{name}/{branch}', function (Request $request, $owner, $name, $branch) use ($app) {
     $client = new Github\Client();
-    if(!file_exists(storage_path() . '/userdata/' . $owner . '_' . $name . '.json') || !$request->session()->has('token'))
+    if(!file_exists(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.json') || !$request->session()->has('token'))
     {
         return redirect('/');
     }
     
     $client->authenticate($request->session()->get('token'), null, Github\Client::AUTH_HTTP_TOKEN);
-    $repo_old = json_decode(file_get_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '.json'));
+    $repo_old = json_decode(file_get_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.json'));
     
     $repoSave = new Repo();
     $repoSave->Name = $repo_old->Name;
     $repoSave->Users = explode(',', $request->input('users'));
-    $repoSave->Branches = explode(',', $request->input('branches'));
+    $repoSave->Branch = $branch;
     $repoSave->Deployed = $repo_old->Deployed;
     $repoSave->Path = $request->input('path');
     $repoSave->Composer = $request->input('composer') == 'on' ? True : False;
-    $repoSave->ComposerOptions = explode(',', $request->input('composerOptions'));
+    $repoSave->ComposerOptions = $request->input('composerOptions');
     $repoSave->PHPUnit = $request->input('phpunit') == 'on' ? True : False;
     $repoSave->DeployPass = $request->input('pass');
     $repoSave->Emails = explode(',', $request->input('emails'));
-    file_put_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '.json', json_encode($repoSave));
+    $repoSave->Exclude = explode(',', $request->input('exclude'));
+        
+    file_put_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.deploy.key', $request->input('deployKey'));
+    file_put_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.ssh.key', $request->input('sshkey'));
+            
+    file_put_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.json', json_encode($repoSave));
 
     return redirect('/');
 });
 
-$app->get('enable/{owner}/{name}', function (Request $request, $owner, $name) use ($app) {
+$app->get('enable/{owner}/{name}/{branch}', function (Request $request, $owner, $name, $branch) use ($app) {
     $client = new Github\Client();
     if($request->session()->has('token'))
     {
         $client->authenticate($request->session()->get('token'), null, Github\Client::AUTH_HTTP_TOKEN);
         $user = $client->currentUser()->show();
-        if(!file_exists(storage_path() . '/userdata/' . $owner . '_' . $name . '.json'))
+        if(!file_exists(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.json'))
         {
             $repo = $client->api('repo')->show($owner, $name);
             $repoSave = new Repo();
             $repoSave->Name = $repo['full_name'];
             $repoSave->Users = array(0 => $user['login']);
-            $repoSave->Branches = array(0 => 'master');
+            $repoSave->Branch = $branch;
             $repoSave->Deployed = null;
             $repoSave->Path = null;
             $repoSave->Composer = null;
-            $repoSave->ComposerOptions = array();
+            $repoSave->ComposerOptions = '--profile';
             $repoSave->PHPUnit = null;
-            $repoSave->DeployPass = null;
-            $repoSave->Emails = array();
-            file_put_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '.json', json_encode($repoSave));
+            $repoSave->DeployPass = sha1($_SERVER['REMOTE_ADDR'] . 'BQK' . rand());
+            $repoSave->Emails = array(0 => $user['email']);
+            $repoSave->Exclude = array();
+            
+            file_put_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.deploy.key', "");
+            file_put_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.ssh.key', "");
+            file_put_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.json', json_encode($repoSave));
         }
         else
         {
@@ -172,7 +190,7 @@ $app->get('enable/{owner}/{name}', function (Request $request, $owner, $name) us
         }      
     }
     
-    return redirect('/');
+    return redirect('view/' . $owner . '/' . $name . '/' . $branch);
 });
 
 class Repo
@@ -183,9 +201,61 @@ class Repo
     public $Deployed;
     public $Path;
     public $Composer = false;
-    public $ComposerOptions = array();
+    public $ComposerOptions;
     public $PHPUnit;
     public $DeployPass;
-    public $Branches = array();
+    public $Branch;
     public $Emails = array();
+    public $SSHKey;
+    public $DeployKey;
+    public $Exclude = array();
 }
+
+$app->get('deploy/{owner}/{name}/{branch}/{pass?}', function (Request $request, $owner, $name, $branch, $pass) use ($app) {
+    
+    if(!$request->session()->has('token') && empty($pass))
+    {
+        return redirect('/')->with('error', 'Unauthorized.');
+    }
+    
+    if(file_exists(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.json'))
+    {
+        $repo = file_get_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.json');
+        $deployKey = file_get_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.deploy.key');
+        $SSHKey = file_get_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.ssh.key');     
+    
+        if($deployKey == null)
+        {
+            $deployKey = "no";
+        }
+        else
+        {
+            $deployKey = storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.deploy.key';
+        }
+        if($SSHKey == null)
+        {
+            $SSHKey = "no";
+        }
+        else
+        {
+            $SSHKey = storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.ssh.key';
+        }
+    }
+    else
+    {
+        return redirect('/')->with('error', 'Non existant repo.');
+    }
+    
+    if($request->session()->has('token') || $repo->DeployPass === $pass)
+    {
+        $client = new Github\Client();
+        $client->authenticate($request->session()->get('token'), null, Github\Client::AUTH_HTTP_TOKEN);
+        $remote = $client->api('repo')->show($owner, $name);
+        ob_start();
+        require_once(__DIR__.'/deploy.php');
+        deploy($repo, $remote['git_url'], $deployKey, $SSHKey);
+        ob_end_flush();
+    }
+    
+    return redirect('/')->with('error', 'Unauthorized.');
+});
