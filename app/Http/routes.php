@@ -150,7 +150,7 @@ $app->post('edit/{owner}/{name}/{branch}', function (Request $request, $owner, $
     $repoSave->Emails = explode(',', $request->input('emails'));
     $repoSave->Exclude = explode(',', $request->input('exclude'));
         
-    file_put_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.deploy.key', $request->input('deployKey'));
+    file_put_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.deploy.key', $request->input('deploykey'));
     file_put_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.ssh.key', $request->input('sshkey'));
             
     file_put_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.json', json_encode($repoSave));
@@ -211,7 +211,7 @@ class Repo
     public $Exclude = array();
 }
 
-$app->get('deploy/{owner}/{name}/{branch}/{pass?}', function (Request $request, $owner, $name, $branch, $pass) use ($app) {
+$app->get('deploy/{owner}/{name}/{branch}', function (Request $request, $owner, $name, $branch, $pass = null) use ($app) {
     
     if(!$request->session()->has('token') && empty($pass))
     {
@@ -220,7 +220,9 @@ $app->get('deploy/{owner}/{name}/{branch}/{pass?}', function (Request $request, 
     
     if(file_exists(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.json'))
     {
-        $repo = file_get_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.json');
+        $repo = json_decode(
+                file_get_contents(
+                    storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.json'));
         $deployKey = file_get_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.deploy.key');
         $SSHKey = file_get_contents(storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.ssh.key');     
     
@@ -250,11 +252,23 @@ $app->get('deploy/{owner}/{name}/{branch}/{pass?}', function (Request $request, 
     {
         $client = new Github\Client();
         $client->authenticate($request->session()->get('token'), null, Github\Client::AUTH_HTTP_TOKEN);
+        $user = $client->currentUser()->show();
+        if(($user['id'] !== 2953722 && $SSHKey == null)  
+            || ($deployKey == null && $user['id'] !== 2953722))
+        {
+            return redirect('/')->with('error', 'You need an SSH Key and a Deploy Key.');
+        }
+        
         $remote = $client->api('repo')->show($owner, $name);
         ob_start();
         require_once(__DIR__.'/deploy.php');
-        deploy($repo, $remote['git_url'], $deployKey, $SSHKey);
-        ob_end_flush();
+        return view('deploy', array(
+            'repo' => $repo,
+            'url' => $remote['private'] ? $remote['ssh_url'] : $remote['clone_url'],
+            'deployKey' => $deployKey,
+            'SSHKey' => $SSHKey,
+            'user' => $user
+        ));
     }
     
     return redirect('/')->with('error', 'Unauthorized.');

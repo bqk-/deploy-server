@@ -14,8 +14,8 @@ if [ "$1" == "-i" ]; then
     if [ "$1" != "no" ]; then
         SSH_KEY=$2; shift; shift
         echo "ssh -i "$SSH_KEY" \"\$@\"" > /tmp/.rsync_ssh.$$
-        chmod +x /tmp/.rsync_ssh.$$
-        rsync -e "ssh -i /tmp/.git_ssh.$$" "$@"
+        chmod 600 /tmp/.rsync_ssh.$$
+        rsync -e "ssh -i /tmp/.rsync_ssh.$$" "$@"
     else
         shift; shift
         rsync "$@"
