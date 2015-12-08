@@ -11,7 +11,7 @@ use Illuminate\Http\Request;
 |
 */
 define('APPLICATION_ID', '26117846c0185339b32a');
-define('APPLICATION_URL', 'http://deploy.app/auth');
+define('APPLICATION_AUTH', 'http://deploy.thibaultmiclo.me/auth');
 define('APPLICATION_SECRET', '49863b68d6ba4e7835a359032682f72e762e6257');
 
 $app->get('/', function (Request $request) use ($app) {
@@ -58,7 +58,7 @@ $app->get('login', function (Request $request) use ($app) {
     $request->session()->put('state', $code);
     header('Location: https://github.com/login/oauth/authorize'
                 . '?client_id=' . APPLICATION_ID . ''
-                . '&redirect_uri=' . APPLICATION_URL . ''
+                . '&redirect_uri=' . APPLICATION_AUTH . ''
                 . '&scope=' . urlencode('repo') . ''
                 . '&state=' . $code);
 });
@@ -77,7 +77,7 @@ $app->get('auth', function (Request $request) {
         $params = array('client_id' => APPLICATION_ID,
                     'client_secret' => APPLICATION_SECRET,
                     'code' => $request->input('code'),
-                    'redirect_uri' => APPLICATION_URL,
+                    'redirect_uri' => APPLICATION_AUTH,
                     'state' => $request->input('state'));
 
         foreach($params as $key=>$value) 
@@ -234,6 +234,7 @@ $app->get('deploy/{owner}/{name}/{branch}', function (Request $request, $owner, 
         {
             $deployKey = storage_path() . '/userdata/' . $owner . '_' . $name . '_' . $branch . '.deploy.key';
         }
+        
         if($SSHKey == null)
         {
             $SSHKey = "no";

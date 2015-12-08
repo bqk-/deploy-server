@@ -22,7 +22,7 @@
                 <div class="form-group">
                     <label for="sshKey">SSH Key</label>
                     <textarea class="form-control" id="sshKey"
-                    placeholder="id-rsa ABC" name="sshkey">{{ $repo['repo_obj']->SSHKey }}</textarea>
+                    placeholder="-----BEGIN RSA PRIVATE KEY-----" name="sshkey">{{ $repo['repo_obj']->SSHKey }}</textarea>
                 </div>
                 <div class="form-group">
                   <label for="exclude">Excluded files</label>
@@ -71,7 +71,7 @@
                 <div class="form-group">
                     <label for="sshKey">Github Deploy Key (Private repo)</label>
                     <textarea class="form-control" id="sshKey"
-                    placeholder="id-rsa ABC" name="deploykey">{{ $repo['repo_obj']->DeployKey }}</textarea>
+                    placeholder="-----BEGIN RSA PRIVATE KEY-----" name="deploykey">{{ $repo['repo_obj']->DeployKey }}</textarea>
                 </div>
                 <a href="/" class="btn btn-danger">Cancel</a><button type="submit" class="btn btn-success">Save</button>   
             </form>

@@ -18,6 +18,7 @@ $requiredBinaries = array('git', 'rsync');
 if($repo->Composer)
 {
     $requiredBinaries[] = 'composer';
+    shell_exec('export COMPOSER_HOME="$(which composer)"');
 }
 
 foreach ($requiredBinaries as $command) {
@@ -92,7 +93,7 @@ $commands[] = sprintf(
 if($repo->Composer)
 {
     $commands[] = sprintf(
-        'composer --no-ansi --no-interaction --no-progress --working-dir=%s install %s'
+        'export HOME="$(pwd)" && composer --no-ansi --no-interaction --working-dir=%s install %s'
         , TMP_DIR
         , $repo->ComposerOptions
     );
@@ -111,6 +112,8 @@ foreach ($repo->Exclude as $exc)
 {
 	$exclude .= ' --exclude='.$exc;
 }
+
+$exclude .= ' --exclude=.composer';
 
 $commands[] = sprintf(
     base_path() . '/rsync.sh -i %s -rltgoDzvO %s %s %s %s'
@@ -144,34 +147,42 @@ foreach ($commands as $command) {
     // Error handling and cleanup
     if ($return_code !== 0) {
         printf('
-<div class="error">
-Error encountered!
-Stopping the script to prevent possible data loss.
-CHECK THE DATA IN YOUR TARGET DIR!
-</div>
-'
-        );
-
-        $error = sprintf(
-            'Deployment error on %s using %s!'
-            , $_SERVER['HTTP_HOST']
-            , __FILE__
-        );
-        error_log($error);
+            <div class="error">
+            Error encountered!
+            Stopping the script to prevent possible data loss.
+            CHECK THE DATA IN YOUR TARGET DIR!
+            </div>
+            '              
+                );
+        
         break;
     }
-    else if (count($repo->Emails) > 0) {
-        $output .= ob_get_contents();
-        $headers = array();
-        $headers[] = sprintf('From: deploy-server <deploy@%s>', $_SERVER['HTTP_HOST']);
-        $headers[] = sprintf('X-Mailer: PHP/%s', phpversion());
+}
+
+if (count($repo->Emails) > 0) 
+{
+    $output .= ob_get_contents();
+    $headers = array();
+    $headers[] = sprintf('From: deploy-server <deploy@%s>', $_SERVER['HTTP_HOST']);
+    $headers[] = sprintf('X-Mailer: PHP/%s', phpversion());
+    if($return_code !== 0)
+    {
+        foreach ($repo->Emails as $email)
+        {
+           mail($email, "Error(s) deploying " . $repo->Name . " [" . $repo->Branch . "]", 
+                   strip_tags(trim($output)), 
+                   implode("\r\n", $headers)); 
+        }
+    }
+    else
+    {
         foreach ($repo->Emails as $email)
         {
            mail($email, "Successful deploy of " . $repo->Name . " [" . $repo->Branch . "]", 
                    strip_tags(trim($output)), 
                    implode("\r\n", $headers)); 
         }
-        
+
         $repo->Deployed = new DateTime('now');
         $tab = explode('/', $repo->Name);
         file_put_contents(
@@ -179,9 +190,17 @@ CHECK THE DATA IN YOUR TARGET DIR!
             json_encode($repo));
     }
 }
-?>
 
-Done.
+if($return_code === 0)
+{
+    printf('
+            <div class="prompt">
+            Successful deploy!
+            </div>
+            '
+                );
+}
+?>
 </pre>
     </div>
     <?php 

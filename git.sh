@@ -14,7 +14,7 @@ if [ "$1" == "-i" ]; then
     if [ "$2" != "no" ]; then
         SSH_KEY=$2; shift; shift
         echo "ssh -i "$SSH_KEY" -o "StrictHostKeyChecking no" \"\$@\"" > /tmp/.git_ssh.$$
-        chmod 600 /tmp/.git_ssh.$$
+        chmod +x /tmp/.git_ssh.$$
         export GIT_SSH=/tmp/.git_ssh.$$
         git "$@"
     else
