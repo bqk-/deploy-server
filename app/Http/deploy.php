@@ -1,6 +1,7 @@
 <?php
 function deploy($repo, $remote, $deployKey, $sshKey)
 {
+    set_time_limit(0);
     define('TMP_DIR', storage_path() . '/tmp/'.  str_replace('/', '_', $repo->Name) .'/' . $repo->Branch .'/');
     ?>
 
